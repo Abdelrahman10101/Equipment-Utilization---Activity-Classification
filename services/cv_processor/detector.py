@@ -249,12 +249,9 @@ class EquipmentDetector:
 
                     # Add segmentation mask if available
                     if masks is not None and i < len(masks):
-                        # masks.data is (N, H, W) tensor at mask resolution
-                        # We need to resize to frame dimensions
                         mask_tensor = masks.data[i]
                         mask_np = mask_tensor.cpu().numpy()
 
-                        # Resize mask to match frame dimensions
                         h, w = frame.shape[:2]
                         if mask_np.shape != (h, w):
                             mask_np = self._resize_mask(mask_np, h, w)
@@ -262,6 +259,13 @@ class EquipmentDetector:
                         det["mask"] = mask_np
                     else:
                         det["mask"] = None
+
+                    # If COCO model, use shape heuristics to distinguish
+                    # excavators from dump trucks
+                    if self.is_coco_model and det["equipment_class"] in ("dump_truck", "vehicle"):
+                        det["equipment_class"] = self._classify_equipment_by_shape(
+                            bbox, det.get("mask")
+                        )
 
                     detections.append(det)
 
@@ -351,6 +355,16 @@ class EquipmentDetector:
                     else:
                         det["mask"] = None
 
+                    # If COCO model, use shape heuristics to distinguish
+                    # excavators from dump trucks (override class + ID)
+                    if self.is_coco_model and equipment_class in ("dump_truck", "vehicle"):
+                        equipment_class = self._classify_equipment_by_shape(
+                            bbox, det.get("mask")
+                        )
+                        det["equipment_class"] = equipment_class
+                        prefix = prefix_map.get(equipment_class, "EQ")
+                        det["equipment_id"] = f"{prefix}-{track_id:03d}" if track_id else f"{prefix}-UNK"
+
                     detections.append(det)
 
         return detections
@@ -360,7 +374,6 @@ class EquipmentDetector:
         Resize a segmentation mask to match the target frame dimensions.
         Uses nearest-neighbor interpolation to keep the mask binary.
         """
-        import cv2
         resized = cv2.resize(
             mask.astype(np.float32),
             (target_w, target_h),

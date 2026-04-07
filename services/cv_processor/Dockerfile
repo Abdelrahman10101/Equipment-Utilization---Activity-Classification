@@ -17,7 +17,7 @@ RUN pip install --default-timeout=1000 --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Download YOLO11m model on build (cached in Docker layer)
-RUN python -c "from ultralytics import YOLO; YOLO('yolo11m.pt')"
+# Download YOLO11m-seg model on build (cached in Docker layer)
+RUN python -c "from ultralytics import YOLO; YOLO('yolo11m-seg.pt')"
 
 CMD ["python", "-u", "processor.py"]

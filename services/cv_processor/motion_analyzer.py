@@ -291,14 +291,47 @@ class MotionAnalyzer:
         is_active = is_upper_active or is_middle_active or is_lower_active or has_lateral_motion
 
         if is_active:
-            if is_upper_active and not is_lower_active:
+            # Use RELATIVE comparison between regions to avoid false "arm_only"
+            # when the whole body is moving but lower region doesn't pass its
+            # higher absolute threshold.
+            #
+            # Key insight: if upper and lower magnitudes are within 2x of each
+            # other, the whole body is moving — not just the arm.
+            upper_f = float(upper_mag)
+            lower_f = float(lower_mag)
+            middle_f = float(middle_mag)
+
+            # Check for uniform motion across all regions (= traveling/full_body)
+            min_region = max(min(upper_f, middle_f, lower_f), 0.001)
+            max_region = max(upper_f, middle_f, lower_f)
+            uniformity_ratio = max_region / min_region  # 1.0 = perfectly uniform
+
+            if uniformity_ratio < 2.5 and max_region > self.arm_threshold:
+                # Motion is spread across all regions → full body
+                if lower_f > self.arm_threshold:
+                    motion_source = "full_body"
+                else:
+                    motion_source = "full_body"
+            elif is_upper_active and lower_f > self.arm_threshold:
+                # Lower region has significant motion too, even if below
+                # the strict track threshold → full_body, not arm_only
+                motion_source = "full_body"
+            elif has_lateral_motion and (is_middle_active or is_upper_active):
+                motion_source = "swing"
+            elif is_upper_active and lower_f < self.arm_threshold * 0.5:
+                # Upper has strong motion, lower has very little → true arm_only
                 motion_source = "arm_only"
+            elif is_lower_active and upper_f < self.arm_threshold * 0.5:
+                # Lower has strong motion, upper barely moves → tracks_only
+                motion_source = "tracks_only"
+            elif is_upper_active and not is_lower_active:
+                # Upper active, lower below strict threshold but check ratio
+                if lower_f > 0 and upper_f / lower_f < 3.0:
+                    motion_source = "full_body"
+                else:
+                    motion_source = "arm_only"
             elif is_lower_active and not is_upper_active:
                 motion_source = "tracks_only"
-            elif has_lateral_motion and is_middle_active:
-                motion_source = "swing"
-            elif is_upper_active and is_lower_active:
-                motion_source = "full_body"
             else:
                 motion_source = "partial"
         else:
