@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Model weights
+models/*.pt
+models/*.onnx
+models/*.engine
+!models/.gitkeep
+
+# Videos (too large for git)
+sample_videos/*.mp4
+sample_videos/*.avi
+sample_videos/*.mov
+sample_videos/*.mkv
+!sample_videos/.gitkeep
+
+# Docker
+.docker/
+
+# Environment
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
