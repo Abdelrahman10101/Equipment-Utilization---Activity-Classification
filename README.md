@@ -1,56 +1,83 @@
-# 🦅 Eagle Vision — Equipment Utilization & Activity Classification
+# 🦅 Eagle Vision — Equipment Utilization & Activity Intelligence
 
-A real-time, microservices-based pipeline that processes construction equipment video clips,
-tracks utilization states (ACTIVE/INACTIVE), classifies work activities, and streams results
-through Apache Kafka to a live Streamlit dashboard with TimescaleDB persistence.
+A real-time, microservices-based pipeline for **construction equipment monitoring** that combines
+**instance segmentation, motion analysis, and temporal reasoning** to deliver highly accurate
+utilization tracking and activity classification.
 
 ![Architecture](https://img.shields.io/badge/Architecture-Microservices-blue)
 ![Kafka](https://img.shields.io/badge/Messaging-Apache%20Kafka-black)
-![CV](https://img.shields.io/badge/CV-YOLOv8-purple)
+![CV](https://img.shields.io/badge/CV-YOLOv11--Seg-purple)
 ![DB](https://img.shields.io/badge/Database-TimescaleDB-orange)
 ![Dashboard](https://img.shields.io/badge/Dashboard-Streamlit-red)
+
+---
+
+## 🔥 What’s New (Key Upgrades)
+
+### 🎯 Instance Segmentation (Pixel-Level Precision)
+
+* Switched from **YOLO detection → YOLO segmentation (`yolo11m-seg.pt`)**
+* Enables **pixel-accurate masks** instead of bounding boxes
+* No additional training required (Ultralytics auto-downloads weights)
+
+### 🎯 Mask-Aware Motion Analysis
+
+* Optical flow computed **only inside object masks**
+* Eliminates background noise (sky, ground, irrelevant motion)
+* Region-based analysis respects **true object shape**
+
+### 🎯 Temporal Intelligence
+
+* Tracks motion history over ~30 frames
+* Detects real behavioral patterns instead of frame-by-frame noise
+
+Patterns detected:
+
+* `down_then_up` → DIGGING
+* `sustained_lateral` → SWINGING
+* `up_then_release` → DUMPING
+* `sustained_stillness` → WAITING
+* `oscillating` → LOADING (vibration)
+
+### 🎯 Two-Layer Activity Classification
+
+1. **Primary Layer:** Temporal pattern detection (confidence ≥ 0.65)
+2. **Fallback Layer:** Instant rule-based features
+
+Both layers feed into smoothing and debouncing for stable predictions.
 
 ---
 
 ## 🏗️ Architecture Overview
 
 ```
-┌─────────────────┐     ┌──────────┐     ┌──────────────────┐     ┌──────────┐
-│  Frame Producer  │────▶│          │────▶│   CV Processor    │────▶│          │
-│  (Video → Kafka) │     │  Apache  │     │  YOLOv8 + Motion  │     │  Apache  │
-└─────────────────┘     │  Kafka   │     │  + Activity Class  │     │  Kafka   │
-                        │          │     └──────────────────┘     │          │
-                        │ raw-     │                               │equipment-│
-                        │ frames   │                               │events    │
-                        └──────────┘                               │annotated-│
-                                                                   │frames    │
-                                                                   └────┬─────┘
-                                                                        │
-                                                          ┌─────────────┼──────────────┐
-                                                          │             │              │
-                                                   ┌──────▼──────┐  ┌──▼───────────┐   │
-                                                   │   DB Sink   │  │  Dashboard   │   │
-                                                   │  → Timescale│  │  (Streamlit) │   │
-                                                   │    DB       │  │              │   │
-                                                   └─────────────┘  └──────────────┘   │
+┌─────────────────┐     ┌──────────┐     ┌────────────────────────┐     ┌──────────┐
+│  Frame Producer  │────▶│  Kafka   │────▶│   CV Processor          │────▶│  Kafka   │
+│  (Video → Kafka) │     │          │     │  Segmentation + Motion  │     │          │
+└─────────────────┘     │ raw-     │     │  + Temporal Classifier  │     │equipment-│
+                        │ frames   │     └────────────────────────┘     │events    │
+                        └──────────┘                                   │annotated │
+                                                                       │frames    │
+                                                                       └────┬─────┘
+                                                                            │
+                                                          ┌─────────────────┼────────────────┐
+                                                          │                 │                │
+                                                   ┌──────▼──────┐  ┌──────▼────────┐       │
+                                                   │   DB Sink   │  │  Dashboard     │       │
+                                                   │ TimescaleDB │  │  (Streamlit)   │       │
+                                                   └─────────────┘  └───────────────┘
 ```
 
-### Microservices
+---
 
-| Service | Description | Port |
-|---------|-------------|------|
-| **Frame Producer** | Reads video files, extracts frames, publishes to Kafka | - |
-| **CV Processor** | YOLOv8 detection + optical flow motion analysis + activity classification | - |
-| **DB Sink** | Consumes events and batch-inserts into TimescaleDB | - |
-| **Dashboard** | Streamlit real-time monitoring UI | 8501 |
+## 🧩 Microservices
 
-### Infrastructure
-
-| Service | Description | Port |
-|---------|-------------|------|
-| **Kafka** | Message broker (Confluent Platform) | 9092 / 29092 |
-| **Zookeeper** | Kafka coordination | 2181 |
-| **TimescaleDB** | Time-series database (PostgreSQL) | 5432 |
+| Service        | Description                                                |
+| -------------- | ---------------------------------------------------------- |
+| Frame Producer | Extracts frames from videos → Kafka                        |
+| CV Processor   | Segmentation + mask-aware motion + temporal classification |
+| DB Sink        | Stores events in TimescaleDB                               |
+| Dashboard      | Real-time monitoring UI                                    |
 
 ---
 
@@ -58,74 +85,74 @@ through Apache Kafka to a live Streamlit dashboard with TimescaleDB persistence.
 
 ### Prerequisites
 
-- **Docker** & **Docker Compose** (v2+)
-- **Sample Videos**: Place `.mp4` files in the `sample_videos/` folder
-- **GPU** (optional): NVIDIA GPU for faster inference
+* Docker & Docker Compose (v2+)
+* Sample `.mp4` videos in `sample_videos/`
+* Optional: NVIDIA GPU
 
-### 1. Clone and add videos
+### Run
 
 ```bash
 git clone <repo-url>
 cd eagle-vision
 
-# Place your construction equipment videos here:
-cp /path/to/your/videos/*.mp4 sample_videos/
-```
+cp /path/to/videos/*.mp4 sample_videos/
 
-### 2. Launch the pipeline
-
-```bash
-# Build and start all services
 docker-compose up --build
-
-# Or run in detached mode
-docker-compose up --build -d
 ```
 
-### 3. Open the dashboard
-
-Navigate to **http://localhost:8501** in your browser.
-
-### 4. Stop the pipeline
-
-```bash
-docker-compose down
-
-# To also remove volumes (database data):
-docker-compose down -v
-```
+Open dashboard:
+[http://localhost:8501](http://localhost:8501)
 
 ---
 
-## 🖥️ GPU Support
+## 🧠 Computer Vision Pipeline
 
-To enable NVIDIA GPU acceleration for the CV Processor, uncomment the GPU section
-in `docker-compose.yml`:
+### 1. Detection + Segmentation
 
-```yaml
-cv-processor:
-  deploy:
-    resources:
-      reservations:
-        devices:
-          - driver: nvidia
-            count: 1
-            capabilities: [gpu]
-```
+* YOLOv11m-seg
+* Instance-level masks
+* ByteTrack for tracking
 
-Make sure you have [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) installed.
+### 2. Mask-Aware Optical Flow
+
+* Flow computed only within segmentation masks
+* Removes background noise
+* Improves motion accuracy
+
+### 3. Region-Based Motion
+
+Each object is split into:
+
+* Upper → Arm / boom
+* Middle → Cabin / swing
+* Lower → Tracks / wheels
+
+All regions are mask-filtered.
+
+### 4. Temporal Pattern Detection
+
+* Uses motion history (~30 frames)
+* Recognizes behavior instead of isolated motion
+
+### 5. Two-Layer Classification
+
+* Temporal patterns (primary)
+* Rule-based fallback
+* Smoothed and debounced output
 
 ---
 
 ## 📦 Kafka Topics
 
-| Topic | Producer | Consumer | Payload |
-|-------|----------|----------|---------|
-| `raw-frames` | Frame Producer | CV Processor | Base64 JPEG + metadata |
-| `equipment-events` | CV Processor | DB Sink, Dashboard | JSON event payload |
-| `annotated-frames` | CV Processor | Dashboard | Base64 annotated JPEG + states |
+| Topic            | Description                 |
+| ---------------- | --------------------------- |
+| raw-frames       | Input frames                |
+| equipment-events | Activity + utilization data |
+| annotated-frames | Visual output               |
 
-### Equipment Event Payload Format
+---
+
+## 📊 Event Payload
 
 ```json
 {
@@ -136,96 +163,40 @@ Make sure you have [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter
   "utilization": {
     "current_state": "ACTIVE",
     "current_activity": "DIGGING",
-    "motion_source": "arm_only"
-  },
-  "time_analytics": {
-    "total_tracked_seconds": 15.0,
-    "total_active_seconds": 12.5,
-    "total_idle_seconds": 2.5,
-    "utilization_percent": 83.3
+    "motion_source": "mask_temporal"
   }
 }
 ```
 
 ---
 
-## 🧠 Computer Vision Pipeline
-
-### Equipment Detection
-- **YOLOv8m** (medium) for real-time object detection
-- Supports COCO-pretrained (trucks) and custom-trained models (excavators, loaders)
-- Built-in **ByteTrack** for multi-object tracking with persistent IDs
-
-### Articulated Motion Analysis
-Key challenge: Detecting ACTIVE state when only part of the machine moves.
-
-**Solution: Region-Based Optical Flow**
-
-```
-┌─────────────────────┐
-│   Upper Region      │  ← Arm/Boom movement
-│   (top 45%)         │
-├─────────────────────┤
-│   Middle Region     │  ← Cab/Swing rotation
-│   (middle 20%)      │
-├─────────────────────┤
-│   Lower Region      │  ← Track/Wheel movement
-│   (bottom 35%)      │
-└─────────────────────┘
-+ Left/Right split for swing detection
-```
-
-1. Dense optical flow (Farnebäck) between consecutive frames
-2. Extract motion magnitude per sub-region within each bounding box
-3. If ANY sub-region exceeds threshold → **ACTIVE**
-4. Motion source labeling: `arm_only`, `tracks_only`, `full_body`, `swing`
-
-### Activity Classification
-
-| Activity | Detection Pattern |
-|----------|-------------------|
-| **DIGGING** | Upper region active (downward), tracks stationary |
-| **SWINGING/LOADING** | High lateral motion + upper/middle active |
-| **DUMPING** | Upper region active (upward direction) |
-| **WAITING** | All regions below threshold |
-
-Temporal smoothing via sliding window prevents activity flickering.
-
----
-
 ## ⚙️ Configuration
 
-All configuration is via environment variables in `.env` or `docker-compose.yml`:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `TARGET_FPS` | 10 | Processing frame rate |
-| `CONFIDENCE_THRESHOLD` | 0.4 | YOLO detection confidence |
-| `MOTION_THRESHOLD` | 2.0 | General motion threshold |
-| `ARM_MOTION_THRESHOLD` | 1.5 | Arm region threshold (more sensitive) |
-| `TRACK_MOTION_THRESHOLD` | 2.5 | Track region threshold (less sensitive) |
-| `STATE_DEBOUNCE_FRAMES` | 5 | Frames before state transition |
-| `SLIDING_WINDOW_SIZE` | 10 | Activity classification window |
+| Variable              | Description         |
+| --------------------- | ------------------- |
+| TARGET_FPS            | Processing FPS      |
+| CONFIDENCE_THRESHOLD  | Detection threshold |
+| MOTION_THRESHOLD      | Flow sensitivity    |
+| SLIDING_WINDOW_SIZE   | Temporal smoothing  |
+| STATE_DEBOUNCE_FRAMES | Stability control   |
 
 ---
 
-## 🗄️ Database Schema
+## 🧠 Why This Matters
 
-TimescaleDB hypertable for time-series equipment events:
+Traditional systems:
 
-```sql
-equipment_events (
-    time, frame_id, equipment_id, equipment_class,
-    current_state, current_activity, motion_source,
-    bbox_x, bbox_y, bbox_w, bbox_h, confidence,
-    total_tracked_seconds, total_active_seconds,
-    total_idle_seconds, utilization_percent
-)
-```
+* Bounding boxes
+* Instant decisions
+* High noise
 
-Pre-built views:
-- `equipment_latest` — Latest state per equipment
-- `utilization_summary` — Aggregated utilization per equipment
+Eagle Vision:
+
+* Pixel-level understanding
+* Temporal reasoning
+* Behavior-aware classification
+
+Result: **More accurate, stable, and realistic activity detection**
 
 ---
 
@@ -233,21 +204,20 @@ Pre-built views:
 
 ```
 eagle-vision/
-├── docker-compose.yml          # Full orchestration
-├── .env                        # Configuration
+├── docker-compose.yml
+├── .env
 ├── db/
-│   └── init.sql                # TimescaleDB schema
-├── sample_videos/              # Input video files
+├── sample_videos/
 ├── services/
-│   ├── frame_producer/         # Video → Kafka frames
-│   ├── cv_processor/           # Detection + Motion + Classification
-│   ├── db_sink/                # Kafka → TimescaleDB
-│   └── dashboard/              # Streamlit UI
-└── models/                     # Model weights (gitignored)
+│   ├── frame_producer/
+│   ├── cv_processor/
+│   ├── db_sink/
+│   └── dashboard/
+└── models/
 ```
 
 ---
 
 ## 📝 License
 
-This project is a technical assessment prototype.
+Technical assessment / prototype project.
