@@ -183,6 +183,25 @@ services:
       - eagle-network
     restart: unless-stopped
 
+  video-sink:
+    build:
+      context: ./services/video_sink
+      dockerfile: Dockerfile
+    container_name: eagle-video-sink
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER: kafka:9092
+      KAFKA_ANNOTATED_FRAMES_TOPIC: annotated-frames
+      OUTPUT_DIR: /app/output_videos
+      TARGET_FPS: 8
+    volumes:
+      - ./output_videos:/app/output_videos
+    networks:
+      - eagle-network
+    restart: unless-stopped
+
 volumes:
   timescale-data:
     driver: local

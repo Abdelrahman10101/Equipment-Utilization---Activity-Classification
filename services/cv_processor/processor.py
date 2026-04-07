@@ -282,10 +282,29 @@ def main():
                 f"End of video: {message.get('video_name')} — "
                 f"Published {message.get('total_frames_published', 0)} frames"
             )
+            # Forward sentinel to downstream consumers
+            try:
+                producer.produce(
+                    Config.ANNOTATED_FRAMES_TOPIC,
+                    key=message.get('video_name', 'unknown').encode("utf-8"),
+                    value=json.dumps(message).encode("utf-8"),
+                )
+                producer.flush(timeout=5)
+            except Exception as e:
+                logger.error(f"Failed to forward sentinel: {e}")
             continue
 
         if message.get("is_end_of_stream"):
             logger.info("End of stream received. All videos processed.")
+            try:
+                producer.produce(
+                    Config.ANNOTATED_FRAMES_TOPIC,
+                    key=b"__EOS__",
+                    value=json.dumps(message).encode("utf-8"),
+                )
+                producer.flush(timeout=5)
+            except Exception as e:
+                logger.error(f"Failed to forward EOS sentinel: {e}")
             # Don't break — keep listening for more
             continue
 

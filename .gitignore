@@ -28,6 +28,7 @@ models/*.engine
 
 # Videos (too large for git)
 sample_videos/*.mp4
+output_videos/*.mp4
 sample_videos/*.avi
 sample_videos/*.mov
 sample_videos/*.mkv
