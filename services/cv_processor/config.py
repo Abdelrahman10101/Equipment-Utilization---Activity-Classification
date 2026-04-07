@@ -12,8 +12,8 @@ class Config:
     ANNOTATED_FRAMES_TOPIC = os.getenv("KAFKA_ANNOTATED_FRAMES_TOPIC", "annotated-frames")
     CONSUMER_GROUP = os.getenv("CONSUMER_GROUP", "cv-processor-group")
 
-    # YOLOv8
-    YOLO_MODEL = os.getenv("YOLO_MODEL", "yolov8s.pt")
+    # YOLO11 (medium) — +6.6 mAP over v8s, fewer params
+    YOLO_MODEL = os.getenv("YOLO_MODEL", "yolo11m.pt")
     CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.4"))
     IOU_THRESHOLD = float(os.getenv("IOU_THRESHOLD", "0.5"))
 

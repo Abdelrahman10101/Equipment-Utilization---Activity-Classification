@@ -17,7 +17,7 @@ RUN pip install --default-timeout=1000 --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Download YOLOv8 model on build (cached in Docker layer)
-RUN python -c "import torch; _load = torch.load; torch.load = lambda *a, **k: _load(*a, **dict(k, weights_only=False)); from ultralytics import YOLO; YOLO('yolov8s.pt')"
+# Download YOLO11m model on build (cached in Docker layer)
+RUN python -c "from ultralytics import YOLO; YOLO('yolo11m.pt')"
 
 CMD ["python", "-u", "processor.py"]
