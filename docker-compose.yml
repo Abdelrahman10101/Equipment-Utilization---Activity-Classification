@@ -114,7 +114,7 @@ services:
       KAFKA_RAW_FRAMES_TOPIC: raw-frames
       KAFKA_EQUIPMENT_EVENTS_TOPIC: equipment-events
       KAFKA_ANNOTATED_FRAMES_TOPIC: annotated-frames
-      YOLO_MODEL: yolo11m.pt
+      YOLO_MODEL: yolo11m-seg.pt
       CONFIDENCE_THRESHOLD: 0.4
       MOTION_THRESHOLD: 2.0
       ARM_MOTION_THRESHOLD: 1.5

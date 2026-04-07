@@ -12,8 +12,9 @@ class Config:
     ANNOTATED_FRAMES_TOPIC = os.getenv("KAFKA_ANNOTATED_FRAMES_TOPIC", "annotated-frames")
     CONSUMER_GROUP = os.getenv("CONSUMER_GROUP", "cv-processor-group")
 
-    # YOLO11 (medium) — +6.6 mAP over v8s, fewer params
-    YOLO_MODEL = os.getenv("YOLO_MODEL", "yolo11m.pt")
+    # YOLO11-seg (medium) — instance segmentation for pixel-precise masks
+    # Masks enable mask-based optical flow → better articulated motion detection
+    YOLO_MODEL = os.getenv("YOLO_MODEL", "yolo11m-seg.pt")
     CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.4"))
     IOU_THRESHOLD = float(os.getenv("IOU_THRESHOLD", "0.5"))
 
